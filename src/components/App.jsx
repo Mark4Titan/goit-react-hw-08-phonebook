@@ -1,33 +1,73 @@
-import { Box } from 'components/Box';
-import { ContactForm } from './Phonebook/ContactForm/ContactForm';
-import { Filter } from './Phonebook/Filter/Filter';
-import { ContactList } from './Phonebook/ContactList/ContactList';
+import { Routes, Route } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useEffect } from 'react';
-import { fetchAllItems } from '../redux/operations';
+import { Loader } from './Loading/Loading';
+import { lazy, useEffect, Suspense } from 'react';
+import * as authOperations from '../redux/auth/authOperations';
+import ResponsiveAppBar from './NavBar/NavBar';
+import { PublicRoute, PrivateRoute } from './CustomRoutes/CustomRoutes';
+import { useNavigate } from 'react-router-dom';
+
+export const Home = lazy(() => import('./views/HomeView/HomeView'));
+export const SignIn = lazy(() => import('components/SignIn/SignIn'));
+export const ContactBook = lazy(() => import('./Contacts/PhoneBook'));
+export const NotFound = lazy(() => import('./views/NotFound/NotFound'));
+export const SignUp = lazy(() => import('components/SingUp/SignUp'));
 
 export const App = () => {
   const dispatch = useDispatch();
-  const isLoading = useSelector(state => state.contact.isLoading);
-  const error = useSelector(state => state.contact.error);
+  const pendingUserData = useSelector(state => state.auth.pendingUserData);
+  const currentPath = useSelector(state => state.auth.currentPath);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    dispatch(fetchAllItems());
-  }, [dispatch]);
+    dispatch(authOperations.fetchCurrentUser());
+    currentPath && navigate(currentPath);
+  }, [currentPath, dispatch, navigate]);
 
   return (
     <>
-      <ContactForm />
-      {isLoading && !error && (
-        <Box p={1} m={1}>
-          {' '}
-          Request in progress...
-        </Box>
+      {!pendingUserData && (
+        <>
+          <ResponsiveAppBar />
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <PublicRoute>
+                    <Home />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute path={'/'} restricted>
+                    <SignUp />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute path={'/'} restricted>
+                    <SignIn />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/contacts"
+                element={
+                  <PrivateRoute path={'/'}>
+                    <ContactBook />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </>
       )}
-      <Box p={4} m={3} display="grid" border="1px solid" width="320px">
-        <Filter />
-        <ContactList />
-      </Box>
     </>
   );
 };
